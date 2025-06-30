@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SuxcedoReels</title>
+  <link rel="icon" href="favicon.png" type="image/png" />
+
+  <style>
+    body {
+      background: #121212;
+      color: #fff;
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      width: 100%;
+      background: #000;
+      padding: 20px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 28px;
+      color: #00ffcc;
+    }
+
+    .main-container {
+      display: flex;
+    }
+
+    .left-menu {
+      width: 200px;
+      background: #1e1e1e;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .left-menu h3 {
+      color: #00ffcc;
+      margin-bottom: 10px;
+    }
+
+    .upload-form input,
+    .upload-form textarea {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: none;
+      border-radius: 5px;
+    }
+
+    .upload-form input[type="file"] {
+      background: #fff;
+      color: #000;
+    }
+
+    .upload-form button {
+      background: #00ffcc;
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .upload-form button:hover {
+      background: #00e0aa;
+    }
+
+    .feed {
+      flex: 1;
+      padding: 30px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+      align-items: center;
+    }
+
+    .feed-item {
+      background: #1e1e1e;
+      padding: 15px;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 450px;
+    }
+
+    .feed-item h4 {
+      margin: 0 0 5px;
+      color: #00ffcc;
+    }
+
+    .feed-item p {
+      margin: 5px 0 10px;
+      font-size: 14px;
+      color: #ccc;
+    }
+
+    .feed-item .actions {
+      margin-top: 10px;
+      display: flex;
+      justify-content: flex-start;
+      gap: 25px;
+      font-size: 20px;
+      color: #ccc;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .feed-item .actions span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .feed-item .actions span.liked {
+      color: #ff4b5c;
+    }
+
+    img, video {
+      width: 100%;
+      max-height: 400px;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+
+    .comment-section {
+      margin-top: 15px;
+      display: none;
+      border-top: 1px solid #333;
+      padding-top: 10px;
+    }
+
+    .comment-section textarea {
+      width: 100%;
+      padding: 8px;
+      border-radius: 5px;
+      border: none;
+      resize: vertical;
+      font-family: 'Arial', sans-serif;
+      font-size: 14px;
+    }
+
+    .comment-section button {
+      margin-top: 8px;
+      background: #00ffcc;
+      color: #000;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .comments-list {
+      margin-top: 10px;
+      max-height: 150px;
+      overflow-y: auto;
+      font-size: 13px;
+      color: #ddd;
+    }
+
+    .comments-list p {
+      margin: 6px 0;
+      border-bottom: 1px solid #333;
+      padding-bottom: 4px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      background: #000;
+      color: #888;
+    }
+
+    @media (max-width: 768px) {
+      .main-container {
+        flex-direction: column;
+      }
+
+      .left-menu {
+        width: 100%;
+        min-height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>SUXCEDO Reels</h1>
+  </header>
+
+  <div class="main-container">
+    <div class="left-menu">
+      <h3>Upload</h3>
+      <form class="upload-form" id="uploadForm">
+        <input type="text" id="title" placeholder="Title" required />
+        <textarea id="desc" rows="3" placeholder="Description..." required></textarea>
+        <input type="file" id="mediaInput" accept="image/*,video/*" required />
+        <button type="submit">Post</button>
+      </form>
+    </div>
+
+    <div class="feed" id="feed">
+      <!-- Posts will appear here -->
+    </div>
+  </div>
+
+  <footer>
+    &copy; 2025 SUXCEDO | All Rights Reserved
+  </footer>
+
+  <script>
+    const form = document.getElementById("uploadForm");
+    const feed = document.getElementById("feed");
+    const storageKey = "suxcedoPosts";
+    const interactedKey = "suxcedoInteracted";
+
+    const cloudName = "dzorvvwp8";
+    const uploadPreset = "Suxcedo_uploads";
+    const uploadFolder = "suxcedo_reels/";
+
+    // Load saved posts on page load
+    window.addEventListener("load", () => {
+      const savedPosts = JSON.parse(localStorage.getItem(storageKey)) || [];
+      const interacted = JSON.parse(localStorage.getItem(interactedKey)) || [];
+      savedPosts
+        .filter(post => !interacted.includes(post.id))
+        .forEach(post => createPostElement(post, false));
+    });
+
+    // Handle new upload
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+
+      const title = document.getElementById("title").value.trim();
+      const desc = document.getElementById("desc").value.trim();
+      const file = document.getElementById("mediaInput").files[0];
+      if (!file) return alert("Please select a media file.");
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", uploadPreset);
+      formData.append("folder", uploadFolder);
+
+      // Upload to Cloudinary
+      fetch(`https://api.cloudinary.com/v1_1/${cloudName}/upload`, {
+        method: "POST",
+        body: formData
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.secure_url) {
+            const newPost = {
+              id: Date.now(),
+              title,
+              desc,
+              media: data.secure_url,
+              isVideo: file.type.startsWith("video/"),
+              likes: 0,
+              comments: []
+            };
+            createPostElement(newPost, true);
+            form.reset();
+          } else {
+            alert("Upload failed, please try again.");
+          }
+        })
+        .catch(() => alert("Upload failed, please check your internet connection."));
+    });
+
+    function createPostElement(post, saveToStorage) {
+      const item = document.createElement("div");
+      item.classList.add("feed-item");
+
+      item.innerHTML = `
+        <h4>${post.title}</h4>
+        <p>${post.desc}</p>
+        ${post.isVideo ? `<video controls src="${post.media}"></video>` : `<img src="${post.media}" alt="${post.title}" />`}
+        <div class="actions">
+          <span class="like-btn">❤️ <span class="like-count">${post.likes}</span></span>
+          <span class="comment-btn">💬</span>
+        </div>
+        <div class="comment-section">
+          <textarea rows="3" placeholder="Write a comment..."></textarea>
+          <button class="post-comment-btn">Post Comment</button>
+          <div class="comments-list">
+            ${post.comments.map(comment => `<p>${comment}</p>`).join('')}
+          </div>
+        </div>
+      `;
+
+      const likeBtn = item.querySelector(".like-btn");
+      const likeCountSpan = item.querySelector(".like-count");
+      const commentBtn = item.querySelector(".comment-btn");
+      const commentSection = item.querySelector(".comment-section");
+      const postCommentBtn = item.querySelector(".post-comment-btn");
+      const commentTextarea = item.querySelector("textarea");
+      const commentsList = item.querySelector(".comments-list");
+
+      likeBtn.addEventListener("click", () => {
+        post.likes++;
+        likeCountSpan.textContent = post.likes;
+        addToInteracted(post.id);
+        updateStorage();
+      });
+
+      commentBtn.addEventListener("click", () => {
+        commentSection.style.display = commentSection.style.display === "block" ? "none" : "block";
+      });
+
+      postCommentBtn.addEventListener("click", () => {
+        const comment = commentTextarea.value.trim();
+        if (comment) {
+          post.comments.push(comment);
+          const newComment = document.createElement("p");
+          newComment.textContent = comment;
+          commentsList.appendChild(newComment);
+          commentTextarea.value = "";
+          addToInteracted(post.id);
+          updateStorage();
+        }
+      });
+
+      feed.prepend(item);
+
+      if (saveToStorage) {
+        const posts = JSON.parse(localStorage.getItem(storageKey)) || [];
+        posts.unshift(post);
+        localStorage.setItem(storageKey, JSON.stringify(posts));
+      }
+    }
+
+    function updateStorage() {
+      const posts = [];
+      const items = feed.querySelectorAll(".feed-item");
+      items.forEach(item => {
+        const title = item.querySelector("h4").textContent;
+        const desc = item.querySelector("p").textContent;
+        const mediaElement = item.querySelector("img, video");
+        const isVideo = mediaElement.tagName.toLowerCase() === "video";
+        const media = mediaElement.getAttribute("src");
+        const likes = parseInt(item.querySelector(".like-count").textContent);
+        const comments = Array.from(item.querySelectorAll(".comments-list p")).map(p => p.textContent);
+        // No unique id here because we don’t store in attribute; 
+        // we rely on localStorage post data for ID.
+        // But this is okay for your current flow.
+        posts.push({ 
+          id: parseInt(item.getAttribute("data-id")) || Date.now(), 
+          title, desc, media, isVideo, likes, comments 
+        });
+      });
+      localStorage.setItem(storageKey, JSON.stringify(posts));
+    }
+
+    function addToInteracted(postId) {
+      let interacted = JSON.parse(localStorage.getItem(interactedKey)) || [];
+      if (!interacted.includes(postId)) {
+        interacted.push(postId);
+        localStorage.setItem(interactedKey, JSON.stringify(interacted));
+      }
+    }
+
+    // Pause other videos when one starts
+    document.addEventListener("play", function(e) {
+      const videos = document.querySelectorAll("video");
+      videos.forEach((vid) => {
+        if (vid !== e.target) vid.pause();
+      });
+    }, true);
+  </script>
+</body>
+</html>
