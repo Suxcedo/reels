@@ -208,7 +208,7 @@
     </div>
   </div>
 
-  <script>
+ <script>
   const supabaseClient = window.supabase.createClient(
     'https://zoignhmsghszucfemfum.supabase.co',
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvaWduaG1zZ2hzenVjZmVtZnVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzNjU0MTAsImV4cCI6MjA2Njk0MTQxMH0.6tg9XMOTWeMNSSNnytG5N0A3xUwSnlvhqt1YwVwK6fs'
@@ -228,19 +228,31 @@
       return alert("Only suxcedo@gmail.com can use the 'SUXCEDO' username.");
     }
 
+    // Check if username already taken
     const { data: existingUser } = await supabaseClient.from("profiles").select("*").eq("username", username).single();
     if (existingUser) return alert("Username already taken.");
 
+    // Sign up user
     const { data, error } = await supabaseClient.auth.signUp({
       email,
       password,
-      options: {
-        data: { username }
-      }
+      options: { data: { username } }
     });
 
     if (error) return alert("Sign up failed: " + error.message);
-    await supabaseClient.from("profiles").insert({ id: data.user.id, username });
+
+    // Check if profile exists (to avoid 409 conflict)
+    const { data: existingProfile } = await supabaseClient.from("profiles").select("*").eq("id", data.user.id).single();
+
+    if (!existingProfile) {
+      // Insert profile row
+      const { error: insertError } = await supabaseClient.from("profiles").insert({
+        id: data.user.id,
+        username,
+      });
+      if (insertError) return alert("Error creating profile: " + insertError.message);
+    }
+
     alert("Signup successful! Please check your email for confirmation.");
   }
 
