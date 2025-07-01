@@ -209,168 +209,168 @@
   </div>
 
   <script>
-    const supabase = supabase.createClient(
-      'https://zoignhmsghszucfemfum.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvaWduaG1zZ2hzenVjZmVtZnVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzNjU0MTAsImV4cCI6MjA2Njk0MTQxMH0.6tg9XMOTWeMNSSNnytG5N0A3xUwSnlvhqt1YwVwK6fs'
-    );
+  const supabaseClient = window.supabase.createClient(
+    'https://zoignhmsghszucfemfum.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvaWduaG1zZ2hzenVjZmVtZnVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzNjU0MTAsImV4cCI6MjA2Njk0MTQxMH0.6tg9XMOTWeMNSSNnytG5N0A3xUwSnlvhqt1YwVwK6fs'
+  );
 
-    function toggleMenu() {
-      document.getElementById("uploadMenu").classList.toggle("open");
+  function toggleMenu() {
+    document.getElementById("uploadMenu").classList.toggle("open");
+  }
+
+  async function signup() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const username = document.getElementById("username").value.trim();
+
+    if (!username) return alert("Username is required.");
+    if (username.toLowerCase() === "suxcedo" && email !== "suxcedo@gmail.com") {
+      return alert("Only suxcedo@gmail.com can use the 'SUXCEDO' username.");
     }
 
-    async function signup() {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      const username = document.getElementById("username").value.trim();
+    const { data: existingUser } = await supabaseClient.from("profiles").select("*").eq("username", username).single();
+    if (existingUser) return alert("Username already taken.");
 
-      if (!username) return alert("Username is required.");
-      if (username.toLowerCase() === "suxcedo" && email !== "suxcedo@gmail.com") {
-        return alert("Only the email suxcedo@gmail.com can register this username.");
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { username }
       }
+    });
 
-      const { data: existingUser } = await supabase.from("profiles").select("*").eq("username", username).single();
-      if (existingUser) return alert("Username already taken.");
+    if (error) return alert("Sign up failed: " + error.message);
+    await supabaseClient.from("profiles").insert({ id: data.user.id, username });
+    alert("Signup successful! Please check your email for confirmation.");
+  }
 
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { username }
-        }
-      });
-      if (error) return alert("Sign up failed: " + error.message);
+  async function login() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) return alert("Login failed: " + error.message);
+    document.getElementById("auth-container").style.display = "none";
+    document.getElementById("reels-app").style.display = "block";
+    loadPosts();
+  }
 
-      await supabase.from("profiles").insert({ id: data.user.id, username });
-      alert("Sign up successful. Please confirm your email.");
-    }
+  async function logout() {
+    await supabaseClient.auth.signOut();
+    location.reload();
+  }
 
-    async function login() {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return alert("Login failed: " + error.message);
+  window.addEventListener("DOMContentLoaded", async () => {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
       document.getElementById("auth-container").style.display = "none";
       document.getElementById("reels-app").style.display = "block";
       loadPosts();
     }
+  });
 
-    async function logout() {
-      await supabase.auth.signOut();
-      location.reload();
-    }
+  const form = document.getElementById("uploadForm");
+  const feed = document.getElementById("feed");
 
-    window.addEventListener("DOMContentLoaded", async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        document.getElementById("auth-container").style.display = "none";
-        document.getElementById("reels-app").style.display = "block";
-        loadPosts();
-      }
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const desc = document.getElementById("desc").value;
+    const file = document.getElementById("mediaInput").files[0];
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const { data: profile } = await supabaseClient.from("profiles").select("username").eq("id", user.id).single();
+    const username = profile?.username || "User";
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", "Suxcedo_uploads");
+    formData.append("folder", "suxcedo_reels");
+
+    const cloudRes = await fetch("https://api.cloudinary.com/v1_1/dzorvvwp8/upload", {
+      method: "POST",
+      body: formData
     });
 
-    const form = document.getElementById("uploadForm");
-    const feed = document.getElementById("feed");
+    const cloudData = await cloudRes.json();
+    if (!cloudData.secure_url) return alert("Upload failed");
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const desc = document.getElementById("desc").value;
-      const file = document.getElementById("mediaInput").files[0];
-      const { data: { user } } = await supabase.auth.getUser();
-
-      const { data: profile } = await supabase.from("profiles").select("username").eq("id", user.id).single();
-      const username = profile?.username || "User";
-
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", "Suxcedo_uploads");
-      formData.append("folder", "suxcedo_reels");
-
-      const cloudRes = await fetch("https://api.cloudinary.com/v1_1/dzorvvwp8/upload", {
-        method: "POST",
-        body: formData
-      });
-
-      const cloudData = await cloudRes.json();
-      if (!cloudData.secure_url) return alert("Upload failed");
-
-      await supabase.from("posts").insert({
-        title: username,
-        description: desc,
-        media_url: cloudData.secure_url,
-        likes: 0,
-        comments: [],
-        user_id: user.id
-      });
-
-      form.reset();
-      loadPosts();
+    await supabaseClient.from("posts").insert({
+      title: username,
+      description: desc,
+      media_url: cloudData.secure_url,
+      likes: 0,
+      comments: [],
+      user_id: user.id
     });
 
-    async function loadPosts() {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: profile } = await supabase.from("profiles").select("username").eq("id", user.id).single();
-      const isAdmin = profile?.username === "SUXCEDO" && user.email === "suxcedo@gmail.com";
+    form.reset();
+    loadPosts();
+  });
 
-      const { data } = await supabase.from("posts").select("*").order("created_at", { ascending: false });
-      feed.innerHTML = "";
-      data.forEach(post => {
-        const isVideo = post.media_url.includes(".mp4") || post.media_url.includes("video");
-        const media = isVideo ? `<video controls src="${post.media_url}"></video>` : `<img src="${post.media_url}" />`;
-        const showDelete = isAdmin || post.user_id === user.id;
+  async function loadPosts() {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const { data: profile } = await supabaseClient.from("profiles").select("username").eq("id", user.id).single();
+    const isAdmin = profile?.username === "SUXCEDO" && user.email === "suxcedo@gmail.com";
 
-        feed.innerHTML += `
-          <div class="feed-item">
-            <h4>${post.title}</h4>
-            <p>${post.description}</p>
-            ${media}
-            <div class="actions">
-              <span onclick="likePost(${post.id})">❤️ <span id="like-count-${post.id}">${post.likes || 0}</span></span>
-              <span onclick="toggleComments(${post.id})">💬 <span id="comment-count-${post.id}">${post.comments?.length || 0}</span></span>
-            </div>
-            <div id="comment-section-${post.id}" class="comment-section" style="display: none;">
-              <div id="comments-${post.id}">
-                ${(post.comments || []).map(c => `<p><strong>${c.user || 'User'}:</strong> ${c.text}</p>`).join('')}
-              </div>
-              <input type="text" id="new-comment-${post.id}" placeholder="Write a comment..." />
-              <button onclick="submitComment(${post.id})">Post</button>
-            </div>
-            ${showDelete ? `<button class="delete-btn" onclick="deletePost(${post.id})">Delete</button>` : ""}
+    const { data } = await supabaseClient.from("posts").select("*").order("created_at", { ascending: false });
+    feed.innerHTML = "";
+    data.forEach(post => {
+      const isVideo = post.media_url.includes(".mp4") || post.media_url.includes("video");
+      const media = isVideo ? `<video controls src="${post.media_url}"></video>` : `<img src="${post.media_url}" />`;
+      const showDelete = isAdmin || post.user_id === user.id;
+
+      feed.innerHTML += `
+        <div class="feed-item">
+          <h4>${post.title}</h4>
+          <p>${post.description}</p>
+          ${media}
+          <div class="actions">
+            <span onclick="likePost(${post.id})">❤️ <span id="like-count-${post.id}">${post.likes || 0}</span></span>
+            <span onclick="toggleComments(${post.id})">💬 <span id="comment-count-${post.id}">${post.comments?.length || 0}</span></span>
           </div>
-        `;
-      });
-    }
+          <div id="comment-section-${post.id}" class="comment-section" style="display: none;">
+            <div id="comments-${post.id}">
+              ${(post.comments || []).map(c => `<p><strong>${c.user || 'User'}:</strong> ${c.text}</p>`).join('')}
+            </div>
+            <input type="text" id="new-comment-${post.id}" placeholder="Write a comment..." />
+            <button onclick="submitComment(${post.id})">Post</button>
+          </div>
+          ${showDelete ? `<button class="delete-btn" onclick="deletePost(${post.id})">Delete</button>` : ""}
+        </div>
+      `;
+    });
+  }
 
-    async function likePost(id) {
-      const { data: post } = await supabase.from("posts").select("likes").eq("id", id).single();
-      const newLikes = (post.likes || 0) + 1;
-      await supabase.from("posts").update({ likes: newLikes }).eq("id", id);
-      document.getElementById(`like-count-${id}`).innerText = newLikes;
-    }
+  async function likePost(id) {
+    const { data: post } = await supabaseClient.from("posts").select("likes").eq("id", id).single();
+    const newLikes = (post.likes || 0) + 1;
+    await supabaseClient.from("posts").update({ likes: newLikes }).eq("id", id);
+    document.getElementById(`like-count-${id}`).innerText = newLikes;
+  }
 
-    function toggleComments(id) {
-      const section = document.getElementById(`comment-section-${id}`);
-      section.style.display = section.style.display === "none" ? "block" : "none";
-    }
+  function toggleComments(id) {
+    const section = document.getElementById(`comment-section-${id}`);
+    section.style.display = section.style.display === "none" ? "block" : "none";
+  }
 
-    async function submitComment(id) {
-      const input = document.getElementById(`new-comment-${id}`);
-      const newText = input.value.trim();
-      if (!newText) return;
+  async function submitComment(id) {
+    const input = document.getElementById(`new-comment-${id}`);
+    const newText = input.value.trim();
+    if (!newText) return;
 
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: profile } = await supabase.from("profiles").select("username").eq("id", user.id).single();
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const { data: profile } = await supabaseClient.from("profiles").select("username").eq("id", user.id).single();
 
-      const { data: post } = await supabase.from("posts").select("comments").eq("id", id).single();
-      const newComments = [...(post.comments || []), { user: profile?.username || "User", text: newText }];
+    const { data: post } = await supabaseClient.from("posts").select("comments").eq("id", id).single();
+    const newComments = [...(post.comments || []), { user: profile?.username || "User", text: newText }];
 
-      await supabase.from("posts").update({ comments: newComments }).eq("id", id);
-      loadPosts();
-    }
+    await supabaseClient.from("posts").update({ comments: newComments }).eq("id", id);
+    loadPosts();
+  }
 
-    async function deletePost(id) {
-      await supabase.from("posts").delete().eq("id", id);
-      loadPosts();
-    }
-  </script>
+  async function deletePost(id) {
+    await supabaseClient.from("posts").delete().eq("id", id);
+    loadPosts();
+  }
+</script>
+
 </body>
 </html>
